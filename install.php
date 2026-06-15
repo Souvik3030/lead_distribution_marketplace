@@ -67,6 +67,45 @@ try {
     error_log('install.php: Exception fetching user.current: ' . $e->getMessage());
 }
 
+// Determine backend base URL dynamically
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+$host = $_SERVER['HTTP_HOST'] ?? '';
+$scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+$backendBaseUrl = $protocol . $host . dirname($scriptName) . '/';
+
+// Save backend URL to Bitrix24 application options
+try {
+    $url = 'https://' . $domain . '/rest/app.option.set?auth=' . $accessToken;
+    $postData = http_build_query([
+        'options' => [
+            'backend_url' => $backendBaseUrl
+        ]
+    ]);
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    
+    $response = curl_exec($ch);
+    if ($response === false) {
+        $errorMsg = curl_error($ch);
+        error_log('install.php: app.option.set request failed: ' . $errorMsg);
+    } else {
+        $resData = json_decode((string)$response, true);
+        if (!isset($resData['result'])) {
+            $errorDesc = $resData['error_description'] ?? 'unknown error';
+            error_log('install.php: app.option.set API error: ' . $errorDesc);
+        }
+    }
+    curl_close($ch);
+} catch (Throwable $e) {
+    error_log('install.php: Exception setting app option: ' . $e->getMessage());
+}
+
+
 if ($installer === null) {
     $installer = [
         'id' => null,
