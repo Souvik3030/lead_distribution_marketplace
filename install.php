@@ -158,8 +158,13 @@ if (count($events) > 100) {
     $events = array_slice($events, 0, 100);
 }
 
-// Save back to JSON files (thread-safe lock)
-file_put_contents($dbFile, json_encode($portals, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
-file_put_contents($eventsFile, json_encode($events, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+// Save back to JSON files (thread-safe lock, warning-suppressed and try-catch isolated)
+try {
+    @file_put_contents($dbFile, json_encode($portals, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    @file_put_contents($eventsFile, json_encode($events, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+} catch (Throwable $fileErr) {
+    error_log('install.php: Failed to write state files: ' . $fileErr->getMessage());
+}
+
 
 echo json_encode(['success' => true]);
