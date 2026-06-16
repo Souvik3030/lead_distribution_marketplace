@@ -9,6 +9,12 @@ header('Content-Type: application/json; charset=utf-8');
 
 // The installation handler receives the ONAPPINSTALL event.
 // Bitrix24 sends parameters via POST.
+// If it is a GET request or a simple verification ping, return a 200 success response
+if ($_SERVER['REQUEST_METHOD'] === 'GET' || (empty($_POST) && empty(file_get_contents('php://input')))) {
+    echo json_encode(['success' => true, 'message' => 'Installer endpoint ready']);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'Method Not Allowed']);
@@ -20,8 +26,8 @@ $accessToken = $_POST['auth']['access_token'] ?? null;
 $memberId = $_POST['auth']['member_id'] ?? null;
 
 if (!$domain || !$accessToken) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Missing auth parameters']);
+    // Return success: false but with 200 status code to pass Bitrix24 URL validation pings
+    echo json_encode(['success' => false, 'error' => 'Missing auth parameters']);
     exit;
 }
 
@@ -39,7 +45,8 @@ try {
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     
     $response = curl_exec($ch);
     if ($response === false) {
@@ -87,7 +94,8 @@ try {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     
     $response = curl_exec($ch);
     if ($response === false) {
