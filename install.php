@@ -40,7 +40,7 @@ define('APP_VERSION', '1.0.0');
 // Fetch user.current using curl
 $installer = null;
 try {
-    $url = 'https://' . $domain . '/rest/user.current?auth=' . $accessToken;
+    $url = 'https://' . $domain . '/rest/user.current.json?auth=' . $accessToken;
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -82,7 +82,7 @@ $backendBaseUrl = $protocol . $host . dirname($scriptName) . '/';
 
 // Save backend URL to Bitrix24 application options
 try {
-    $url = 'https://' . $domain . '/rest/app.option.set?auth=' . $accessToken;
+    $url = 'https://' . $domain . '/rest/app.option.set.json?auth=' . $accessToken;
     $postData = http_build_query([
         'options' => [
             'backend_url' => $backendBaseUrl

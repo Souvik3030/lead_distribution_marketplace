@@ -8,7 +8,22 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-$secret = 'secretkey123';
+$secret = null;
+
+// Load custom secret key from config.php if it exists
+$configPath = dirname(__DIR__) . '/config.php';
+if (file_exists($configPath)) {
+    $config = include $configPath;
+    if (is_array($config) && isset($config['secret_key'])) {
+        $secret = $config['secret_key'];
+    }
+}
+
+if (!$secret) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Secret key configuration missing. Please configure config.php.']);
+    exit;
+}
 
 
 $key = $_GET['key'] ?? '';
