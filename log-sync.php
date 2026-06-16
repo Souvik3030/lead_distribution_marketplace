@@ -46,12 +46,21 @@ if (file_exists($dbFile)) {
     }
 }
 
-// Only update portals that were registered via install.php.
-// Do NOT auto-create entries here — installed_at must be the real install time.
+// If this portal has never been seen before, create a skeleton entry.
+// installed_at and installer are intentionally left null — only install.php
+// sets those when the real ONAPPINSTALL event fires from Bitrix24.
+// This keeps the app functional even if install.php fires after the first sync.
 if (!isset($portals[$domain])) {
-    http_response_code(404);
-    echo json_encode(['error' => 'Portal not registered. Install the app first.']);
-    exit;
+    $portals[$domain] = [
+        'installed_at'  => null,   // Will be set by install.php on real install
+        'installer'     => null,   // Will be set by install.php on real install
+        'member_id'     => '',
+        'language'      => 'en',
+        'app_version'   => '1.0.0',
+        'plan'          => 'free',
+        'token_expires_at' => null,
+        'status'        => 'active'
+    ];
 }
 
 $portal = &$portals[$domain];

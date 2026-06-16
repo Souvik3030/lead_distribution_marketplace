@@ -76,10 +76,13 @@ foreach ($portals as $domain => $portal) {
     $plan = $portal['plan'] ?? 'free';
     $byPlan[$plan] = ($byPlan[$plan] ?? 0) + 1;
 
-    // Install time checking
-    $installedAt = $portal['installed_at'] ?? '';
+    // Install time checking — only count portals registered via install.php
+    // (installed_at is null for skeleton entries created by log-sync).
+    $installedAt = $portal['installed_at'] ?? null;
     $installedTs = $installedAt ? strtotime($installedAt) : false;
-    if ($installedTs !== false) {
+    $isRealInstall = ($installedTs !== false);
+
+    if ($isRealInstall) {
         if ($installedTs >= $sevenDaysAgo) {
             $installs7d++;
         }
@@ -88,28 +91,30 @@ foreach ($portals as $domain => $portal) {
         }
     }
 
-    // Build installer record
-    $installerInfo = [
-        'domain'       => $domain,
-        'installed_at' => $installedAt,
-        'name'         => '',
-        'email'        => '',
-        'phone'        => '',
-        'position'     => '',
-    ];
-    if (isset($portal['installer']) && is_array($portal['installer'])) {
-        $installerInfo['name']     = trim(($portal['installer']['name'] ?? '') . ' ' . ($portal['installer']['last_name'] ?? ''));
-        $installerInfo['email']    = $portal['installer']['email'] ?? '';
-        $installerInfo['phone']    = $portal['installer']['phone'] ?? '';
-        $installerInfo['position'] = $portal['installer']['position'] ?? '';
-    }
+    // Build installer record — only for portals confirmed via install.php
+    if ($isRealInstall) {
+        $installerInfo = [
+            'domain'       => $domain,
+            'installed_at' => $installedAt,
+            'name'         => '',
+            'email'        => '',
+            'phone'        => '',
+            'position'     => '',
+        ];
+        if (isset($portal['installer']) && is_array($portal['installer'])) {
+            $installerInfo['name']     = trim(($portal['installer']['name'] ?? '') . ' ' . ($portal['installer']['last_name'] ?? ''));
+            $installerInfo['email']    = $portal['installer']['email'] ?? '';
+            $installerInfo['phone']    = $portal['installer']['phone'] ?? '';
+            $installerInfo['position'] = $portal['installer']['position'] ?? '';
+        }
 
-    $installersAllTime[] = $installerInfo;
-    if ($installedTs !== false && $installedTs >= $thirtyDaysAgo) {
-        $installers30d[] = $installerInfo;
-    }
-    if ($installedTs !== false && $installedTs >= $sevenDaysAgo) {
-        $installers7d[] = $installerInfo;
+        $installersAllTime[] = $installerInfo;
+        if ($installedTs >= $thirtyDaysAgo) {
+            $installers30d[] = $installerInfo;
+        }
+        if ($installedTs >= $sevenDaysAgo) {
+            $installers7d[] = $installerInfo;
+        }
     }
 
     // Construct safe portal output (no credentials!)

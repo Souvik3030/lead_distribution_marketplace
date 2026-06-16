@@ -136,15 +136,17 @@ if (file_exists($dbFile)) {
 }
 
 // Update or create portal entry.
-// If the portal already exists (reinstall), preserve installed_at and installer
-// so historical data is never overwritten.
-$isFirstInstall = !isset($portals[$domain]);
+// Preserve installed_at and installer only if they were already set by a real
+// install event (not null). Null means a skeleton was created by log-sync
+// before install.php fired, so we fill in the real values now.
+$existingInstalledAt = $portals[$domain]['installed_at'] ?? null;
+$isRealReinstall = isset($portals[$domain]) && $existingInstalledAt !== null;
 
 $portals[$domain] = array_merge(
     // Keep all existing fields (stats, sources, events, etc.)
     $portals[$domain] ?? [],
     [
-        // Only overwrite mutable fields
+        // Always overwrite mutable fields
         'member_id'        => $memberId,
         'language'         => $lang,
         'app_version'      => APP_VERSION,
@@ -154,8 +156,9 @@ $portals[$domain] = array_merge(
     ]
 );
 
-// Only set installed_at and installer on first install
-if ($isFirstInstall) {
+// Set installed_at and installer only on first real install or when
+// filling a skeleton entry (installed_at was null from log-sync auto-create).
+if (!$isRealReinstall) {
     $portals[$domain]['installed_at'] = gmdate('Y-m-d\TH:i:s\Z');
     $portals[$domain]['installer']    = $installer;
 }
