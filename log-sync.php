@@ -46,25 +46,12 @@ if (file_exists($dbFile)) {
     }
 }
 
-// If the portal is not yet tracked, initialize basic fields
+// Only update portals that were registered via install.php.
+// Do NOT auto-create entries here — installed_at must be the real install time.
 if (!isset($portals[$domain])) {
-    $portals[$domain] = [
-        'installed_at' => gmdate('Y-m-d\TH:i:s\Z'),
-        'installer' => [
-            'id' => null,
-            'name' => null,
-            'last_name' => null,
-            'email' => null,
-            'position' => null,
-            'phone' => null
-        ],
-        'member_id' => '',
-        'language' => 'en',
-        'app_version' => '1.0.0',
-        'plan' => 'free',
-        'token_expires_at' => gmdate('Y-m-d\TH:i:s\Z'),
-        'status' => 'active'
-    ];
+    http_response_code(404);
+    echo json_encode(['error' => 'Portal not registered. Install the app first.']);
+    exit;
 }
 
 $portal = &$portals[$domain];

@@ -56,6 +56,11 @@ $thirtyDaysAgo = $now - (30 * 24 * 60 * 60);
 
 $portalsList = [];
 
+// Installer breakdown lists
+$installersAllTime = [];
+$installers30d = [];
+$installers7d = [];
+
 foreach ($portals as $domain => $portal) {
     $totalPortals++;
 
@@ -73,47 +78,75 @@ foreach ($portals as $domain => $portal) {
 
     // Install time checking
     $installedAt = $portal['installed_at'] ?? '';
-    if ($installedAt) {
-        $installedTs = strtotime($installedAt);
-        if ($installedTs !== false) {
-            if ($installedTs >= $sevenDaysAgo) {
-                $installs7d++;
-            }
-            if ($installedTs >= $thirtyDaysAgo) {
-                $installs30d++;
-            }
+    $installedTs = $installedAt ? strtotime($installedAt) : false;
+    if ($installedTs !== false) {
+        if ($installedTs >= $sevenDaysAgo) {
+            $installs7d++;
         }
+        if ($installedTs >= $thirtyDaysAgo) {
+            $installs30d++;
+        }
+    }
+
+    // Build installer record
+    $installerInfo = [
+        'domain'       => $domain,
+        'installed_at' => $installedAt,
+        'name'         => '',
+        'email'        => '',
+        'phone'        => '',
+        'position'     => '',
+    ];
+    if (isset($portal['installer']) && is_array($portal['installer'])) {
+        $installerInfo['name']     = trim(($portal['installer']['name'] ?? '') . ' ' . ($portal['installer']['last_name'] ?? ''));
+        $installerInfo['email']    = $portal['installer']['email'] ?? '';
+        $installerInfo['phone']    = $portal['installer']['phone'] ?? '';
+        $installerInfo['position'] = $portal['installer']['position'] ?? '';
+    }
+
+    $installersAllTime[] = $installerInfo;
+    if ($installedTs !== false && $installedTs >= $thirtyDaysAgo) {
+        $installers30d[] = $installerInfo;
+    }
+    if ($installedTs !== false && $installedTs >= $sevenDaysAgo) {
+        $installers7d[] = $installerInfo;
     }
 
     // Construct safe portal output (no credentials!)
     $safePortal = [
-        'domain' => $domain,
-        'installed_at' => $portal['installed_at'] ?? '',
-        'installer' => null,
-        'member_id' => $portal['member_id'] ?? '',
-        'language' => $portal['language'] ?? 'en',
-        'app_version' => $portal['app_version'] ?? '1.0.0',
-        'plan' => $plan,
-        'status' => $status,
-        'sources_configured' => $portal['sources_configured'] ?? [],
-        'last_synced_at' => $portal['last_synced_at'] ?? (object) [],
+        'domain'                 => $domain,
+        'installed_at'           => $installedAt,
+        'installer'              => null,
+        'member_id'              => $portal['member_id'] ?? '',
+        'language'               => $portal['language'] ?? 'en',
+        'app_version'            => $portal['app_version'] ?? '1.0.0',
+        'plan'                   => $plan,
+        'status'                 => $status,
+        'sources_configured'     => $portal['sources_configured'] ?? [],
+        'last_synced_at'         => $portal['last_synced_at'] ?? (object) [],
         'events_processed_total' => $portal['events_processed_total'] ?? (object) [],
-        'events_this_month' => (int) ($portal['events_this_month'] ?? 0),
-        'errors_last_24h' => (int) ($portal['errors_last_24h'] ?? 0),
-        'token_expires_at' => $portal['token_expires_at'] ?? ''
+        'events_this_month'      => (int) ($portal['events_this_month'] ?? 0),
+        'errors_last_24h'        => (int) ($portal['errors_last_24h'] ?? 0),
+        'token_expires_at'       => $portal['token_expires_at'] ?? ''
     ];
 
     if (isset($portal['installer']) && is_array($portal['installer'])) {
         $safePortal['installer'] = [
-            'name' => trim(($portal['installer']['name'] ?? '') . ' ' . ($portal['installer']['last_name'] ?? '')),
-            'email' => $portal['installer']['email'] ?? '',
-            'position' => $portal['installer']['position'] ?? '',
-            'phone' => $portal['installer']['phone'] ?? ''
+            'name'     => $installerInfo['name'],
+            'email'    => $installerInfo['email'],
+            'position' => $installerInfo['position'],
+            'phone'    => $installerInfo['phone']
         ];
     }
 
     $portalsList[] = $safePortal;
 }
+
+// Sort installer lists newest-first
+$sortByDate = fn($a, $b) => strcmp($b['installed_at'], $a['installed_at']);
+usort($installersAllTime, $sortByDate);
+usort($installers30d,     $sortByDate);
+usort($installers7d,      $sortByDate);
 
 // Recent events
 $recentEvents = [];
@@ -127,16 +160,21 @@ if (file_exists($eventsFile)) {
 
 $response = [
     'generated_at' => gmdate('Y-m-d\TH:i:s\Z'),
-    'app' => 'csv-lead-import-agent-assignment',
-    'summary' => [
-        'total_portals' => $totalPortals,
-        'active_portals' => $activePortals,
-        'dead_portals' => $deadPortals,
-        'by_plan' => $byPlan,
-        'installs_last_7_days' => $installs7d,
-        'installs_last_30_days' => $installs30d
+    'app'          => 'csv-lead-import-agent-assignment',
+    'summary'      => [
+        'total_portals'          => $totalPortals,
+        'active_portals'         => $activePortals,
+        'dead_portals'           => $deadPortals,
+        'by_plan'                => $byPlan,
+        'installs_last_7_days'   => $installs7d,
+        'installs_last_30_days'  => $installs30d
     ],
-    'portals' => $portalsList,
+    'installers' => [
+        'all_time'     => ['count' => count($installersAllTime), 'users' => $installersAllTime],
+        'last_30_days' => ['count' => count($installers30d),     'users' => $installers30d],
+        'last_7_days'  => ['count' => count($installers7d),      'users' => $installers7d],
+    ],
+    'portals'       => $portalsList,
     'recent_events' => $recentEvents
 ];
 

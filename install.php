@@ -135,17 +135,30 @@ if (file_exists($dbFile)) {
     }
 }
 
-// Update or create portal entry
-$portals[$domain] = [
-    'installed_at' => gmdate('Y-m-d\TH:i:s\Z'),
-    'installer' => $installer,
-    'member_id' => $memberId,
-    'language' => $lang,
-    'app_version' => APP_VERSION,
-    'plan' => 'free', // Default plan
-    'token_expires_at' => gmdate('Y-m-d\TH:i:s\Z', time() + (int)($_POST['auth']['expires_in'] ?? 3600)),
-    'status' => 'active'
-];
+// Update or create portal entry.
+// If the portal already exists (reinstall), preserve installed_at and installer
+// so historical data is never overwritten.
+$isFirstInstall = !isset($portals[$domain]);
+
+$portals[$domain] = array_merge(
+    // Keep all existing fields (stats, sources, events, etc.)
+    $portals[$domain] ?? [],
+    [
+        // Only overwrite mutable fields
+        'member_id'        => $memberId,
+        'language'         => $lang,
+        'app_version'      => APP_VERSION,
+        'plan'             => $portals[$domain]['plan'] ?? 'free',
+        'token_expires_at' => gmdate('Y-m-d\TH:i:s\Z', time() + (int)($_POST['auth']['expires_in'] ?? 3600)),
+        'status'           => 'active', // Re-activate if was marked dead
+    ]
+);
+
+// Only set installed_at and installer on first install
+if ($isFirstInstall) {
+    $portals[$domain]['installed_at'] = gmdate('Y-m-d\TH:i:s\Z');
+    $portals[$domain]['installer']    = $installer;
+}
 
 // Append install event to recent events log
 $eventsFile = __DIR__ . '/events.json';
