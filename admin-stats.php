@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $secret = null;
 
 // Load custom secret key from config.php if it exists
-$configPath = dirname(__DIR__) . '/config.php';
+$configPath = __DIR__ . '/config.php';
 if (file_exists($configPath)) {
     $config = include $configPath;
     if (is_array($config) && isset($config['secret_key'])) {
